@@ -19,6 +19,7 @@ Técnicas utilizadas:
 - criação de campo calculado
 - ordenação por valor
 - limitação de resultados (ranking)
+*/
 
 
 -- Relatório de maiores créditos individuais
