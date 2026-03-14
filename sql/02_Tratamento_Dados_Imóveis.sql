@@ -1,297 +1,213 @@
+/*
+Projeto: Transformação de Dados Cadastrais de Imóveis
+
+Descrição:
+Esta consulta consolida informações cadastrais de imóveis e contribuintes,
+realizando tratamento e transformação de dados para análise tributária.
+
+A consulta realiza:
+- integração de múltiplas tabelas cadastrais
+- tratamento de atributos do imóvel
+- consolidação de categorias em colunas (pivot)
+- recuperação do lançamento tributário mais recente
+
+Técnicas utilizadas:
+- CTE (Common Table Expression)
+- DISTINCT ON (PostgreSQL)
+- STRING_AGG para agregação de atributos
+- CASE para tratamento de valores
+- pivot de atributos utilizando MAX()
+*/
+
 WITH base AS (
 
-    SELECT
+SELECT
 
-		d.prpcod,
-        d.prpnom,
+    -- Identificação do contribuinte
+    C.taxpayer_id,
+    C.taxpayer_name,
 
-        a.bcicod,
-        a.discod,
-        a.setcod,
-        a.qdacod,
-        a.bcilot,
-        a.bciund,
+    -- Identificação do imóvel
+    P.property_id,
+    P.district_code,
+    P.sector_code,
+    P.block_code,
+    P.lot_number,
+    P.unit_number,
 
-        b.lgrnom,
-        b.lgrcod,
+    -- Informações do logradouro
+    A.street_name,
+    A.street_id,
 
-        a.bciareediund,
-        a.bciareterm2,
-        a.bciaretotedif,
+    -- Informações de área
+    P.built_area_unit,
+    P.land_area_m2,
+    P.total_built_area,
 
-        x.bcitrbalq,
-        x.bcitrbvlr,
-        x.bcivlrvenalterr,
-        x.bcivlrvenaledif,
+    -- Informações tributárias
+    T.tax_rate,
+    T.tax_amount,
+    T.land_value,
+    T.building_value,
 
-        a.qdaseg,
-        bcilgrcomp,
-        bcicomplemaux,
-        a.baicod,
-        bainom,
+    -- Informações complementares
+    P.block_face,
+    P.is_exempt,
+    P.is_immune,
 
-        a.ltmcod,
-        ltmnom,
-        ltmqda,
-        ltmlot,
-        BciLtmcod,
-        bciltmblq,
-        bciltmapto,
+    -- Informações do logradouro
+    A.street_type,
+    P.street_number,
 
-        Bcitesprinc,
-        bciprof,
-        lgrseg,
-        bcilgrnum,
-        bciisento,
-        bciimune,
+    -- Atributo do imóvel
+    btrim(F.attribute_name) AS attribute_name,
 
-        f.infcod,
-        bciativo,
-        lgrtip,
-
-        -- BTRIM remove espaços no início e fim do texto
-        btrim(f.atrdsc) AS atrdsc,
-
-        -- Função de agregação que concatena múltiplas linhas
-        -- em uma única string;
-        -- DISTINCT evita valores repetidos;
-        -- ' / ' é o separador entre os valores concatenados;
-        -- ORDER BY dentro do STRING_AGG garante a ordem
-        -- dos valores concatenados.
-
-        STRING_AGG(
-            DISTINCT
-                CASE
-                    -- CASE usado para ignorar categorias inválidas.
-                    WHEN e.catcod IS NULL OR e.catcod = 0
-                        THEN NULL
-                    ELSE g.catdscred
-                END,
-            ' / '
-            ORDER BY
-                CASE
-                    WHEN e.catcod IS NULL OR e.catcod = 0
-                        THEN NULL
-                    ELSE g.catdscred
-                END
-        ) AS val
-
-    FROM tb006 AS a
-
-
-    -- DISTINCT ON é uma funcionalidade do PostgreSQL que
-    -- retorna apenas uma linha por chave especificada;
-    -- Neste caso, pega o registro mais recente
-    -- (bciseqlanc DESC).
-
-    LEFT JOIN (
-        SELECT DISTINCT ON (bcicod)
-            bcicod,
-            bcitrbalq,
-            bcitrbvlr,
-            bcivlrvenalterr,
-            bcivlrvenaledif
-        FROM tb032
-        WHERE bciexerc = 2025
-          AND bcititnum > 0
+    STRING_AGG(
+        DISTINCT
+        CASE
+            WHEN AT.category_id IS NULL OR AT.category_id = 0
+                THEN NULL
+            ELSE CT.category_description
+        END,
+        ' / '
         ORDER BY
-            bcicod,
-            bciseqlanc DESC
-    ) x
-        ON a.bcicod = x.bcicod
+        CASE
+            WHEN AT.category_id IS NULL OR AT.category_id = 0
+                THEN NULL
+            ELSE CT.category_description
+        END
+    ) AS attribute_value
 
+FROM Properties P
 
-    -- Todas as colunas que não estão em agregações
-    -- precisam estar no GROUP BY.
+-- Lançamento mais recente do imóvel
+LEFT JOIN (
+    SELECT DISTINCT ON (property_id)
 
-    GROUP BY
-        d.prpcod,
-        d.prpnom,
+        property_id,
+        tax_rate,
+        tax_amount,
+        land_value,
+        building_value
 
-        a.bcicod,
-        a.discod,
-        a.setcod,
-        a.qdacod,
-        a.bcilot,
-        a.bciund,
+    FROM PropertyTaxes
+    WHERE fiscal_year = 2025
+      AND tax_record > 0
 
-        b.lgrnom,
-        b.lgrcod,
+    ORDER BY
+        property_id,
+        tax_sequence DESC
+) T
+    ON P.property_id = T.property_id
 
-        a.bciareediund,
-        a.bciareterm2,
-        a.bciaretotedif,
+GROUP BY
 
-        a.qdaseg,
-        bcilgrcomp,
-        bcicomplemaux,
-        a.baicod,
-        bainom,
+    C.taxpayer_id,
+    C.taxpayer_name,
 
-        a.ltmcod,
-        ltmnom,
-        ltmqda,
-        ltmlot,
-        BciLtmcod,
-        bciltmblq,
-        bciltmapto,
+    P.property_id,
+    P.district_code,
+    P.sector_code,
+    P.block_code,
+    P.lot_number,
+    P.unit_number,
 
-        Bcitesprinc,
-        bciprof,
-        lgrseg,
-        bcilgrnum,
-        bciisento,
-        bciimune,
+    A.street_name,
+    A.street_id,
 
-        x.bcitrbalq,
-        x.bcitrbvlr,
-        x.bcivlrvenalterr,
-        x.bcivlrvenaledif,
+    P.built_area_unit,
+    P.land_area_m2,
+    P.total_built_area,
 
-        f.infcod,
-        f.atrdsc,
+    T.tax_rate,
+    T.tax_amount,
+    T.land_value,
+    T.building_value,
 
-        bciativo,
-        lgrtip
+    P.block_face,
+    P.is_exempt,
+    P.is_immune,
+
+    A.street_type,
+    P.street_number,
+
+    F.attribute_name
 )
 
 SELECT
 
-    prpcod AS "inscrição Contribuinte",
-    prpnom AS "Nome Contribuinte",
-    bcicod AS "Inscrição imóvel",
+    taxpayer_id AS "Inscrição Contribuinte",
+    taxpayer_name AS "Nome Contribuinte",
 
-    discod AS "Distrito",
-    setcod AS "Setor",
-    qdacod AS "Quadra",
-    bcilot AS "Lote",
-    bciund AS "Unidade",
+    property_id AS "Inscrição Imóvel",
 
-    qdaseg   AS "Face de quadra",
-    bciisento AS "Isento",
-    bciimune  AS "imune",
+    district_code AS "Distrito",
+    sector_code AS "Setor",
+    block_code AS "Quadra",
+    lot_number AS "Lote",
+    unit_number AS "Unidade",
 
-    lgrtip AS "Tipo",
-    lgrnom AS "Logradouro",
-    lgrcod AS "Código Logradouro",
-    bcilgrnum AS "Número",
+    block_face AS "Face de Quadra",
 
-    bciareediund  AS "Área Edificada da Unidade",
-    bciareterm2   AS "Área Terreno m²",
-    bciaretotedif AS "Área Total Edificada",
+    is_exempt AS "Isento",
+    is_immune AS "Imune",
 
-    bcitrbalq AS "Alíquota",
-    bcitrbvlr AS "Valor IPTU Lançado",
+    street_type AS "Tipo Logradouro",
+    street_name AS "Logradouro",
+    street_id AS "Código Logradouro",
+    street_number AS "Número",
 
-    bcivlrvenalterr AS "Valor Venal Terreno",
-    bcivlrvenaledif AS "Valor Venal Edificado",
+    built_area_unit AS "Área Edificada da Unidade",
+    land_area_m2 AS "Área Terreno m²",
+    total_built_area AS "Área Total Edificada",
 
-    CASE bciativo
+    tax_rate AS "Alíquota",
+    tax_amount AS "Valor IPTU Lançado",
+
+    land_value AS "Valor Venal Terreno",
+    building_value AS "Valor Venal Edificado",
+
+    CASE property_status
         WHEN 'S' THEN 'Ativo'
         WHEN 'N' THEN 'Desativado'
         WHEN 'I' THEN 'Incorporado'
         WHEN 'T' THEN 'Temporário'
         WHEN 'R' THEN 'Imóvel Rural'
         WHEN 'B' THEN 'Bloqueado'
-    END AS "Status do Imóvel",
-
-    -- Cada atributo vira uma coluna.
-    -- MAX() é usado apenas como agregador para permitir o pivot das linhas.
-    -- O CASE seleciona apenas o atributo correspondente.
-    -- !Essas informações veem do scrpit 01_dynamic_pivot_generator!
-  
-    MAX(CASE WHEN atrdsc = 'ABASTECIMENTO D''AGUA'      THEN val END) AS "ABASTECIMENTO D'AGUA",
-    MAX(CASE WHEN atrdsc = 'ACABAMENTO EXTERNO'         THEN val END) AS "ACABAMENTO EXTERNO",
-    MAX(CASE WHEN atrdsc = 'ACABAMENTO INTERNO'         THEN val END) AS "ACABAMENTO INTERNO",
-    MAX(CASE WHEN atrdsc = 'ADEQUAÇÃO PARA OCUPAÇÃO'    THEN val END) AS "ADEQUAÇÃO PARA OCUPAÇÃO",
-    MAX(CASE WHEN atrdsc = 'ARVORE NO PASSEIO'          THEN val END) AS "ARVORE NO PASSEIO",
-    MAX(CASE WHEN atrdsc = 'ATRIBUTOS ESPECIAIS'        THEN val END) AS "ATRIBUTOS ESPECIAIS",
-    MAX(CASE WHEN atrdsc = 'BENFEITORIA'                THEN val END) AS "BENFEITORIA",
-    MAX(CASE WHEN atrdsc = 'CLASSIFICAÇÃO ARQ.'         THEN val END) AS "CLASSIFICAÇÃO ARQ.",
-    MAX(CASE WHEN atrdsc = 'COBERTURA'                  THEN val END) AS "COBERTURA",
-    MAX(CASE WHEN atrdsc = 'CONSERVAÇÃO'                THEN val END) AS "CONSERVAÇÃO",
-    MAX(CASE WHEN atrdsc = 'ESQUADRIA'                  THEN val END) AS "ESQUADRIA",
-    MAX(CASE WHEN atrdsc = 'ESTRUTURA'                  THEN val END) AS "ESTRUTURA",
-    MAX(CASE WHEN atrdsc = 'FORRO'                      THEN val END) AS "FORRO",
-    MAX(CASE WHEN atrdsc = 'INSTALAÇÃO ELETRICA'        THEN val END) AS "INSTALAÇÃO ELETRICA",
-    MAX(CASE WHEN atrdsc = 'INSTALAÇÃO SANITARIA'       THEN val END) AS "INSTALAÇÃO SANITARIA",
-    MAX(CASE WHEN atrdsc = 'NATUREZA'                   THEN val END) AS "NATUREZA",
-    MAX(CASE WHEN atrdsc = 'OCUPAÇÃO DO LOTE'           THEN val END) AS "OCUPAÇÃO DO LOTE",
-    MAX(CASE WHEN atrdsc = 'PASSEIO PARA PEDESTRE'      THEN val END) AS "PASSEIO PARA PEDESTRE",
-    MAX(CASE WHEN atrdsc = 'PATRIMONIO'                 THEN val END) AS "PATRIMONIO",
-    MAX(CASE WHEN atrdsc = 'PISO'                       THEN val END) AS "PISO",
-    MAX(CASE WHEN atrdsc = 'POSICAO FISCAL'             THEN val END) AS "POSICAO FISCAL",
-    MAX(CASE WHEN atrdsc = 'RESERVATORIO D''AGUA'       THEN val END) AS "RESERVATORIO D'AGUA",
-    MAX(CASE WHEN atrdsc = 'SANITARIO'                  THEN val END) AS "SANITARIO",
-    MAX(CASE WHEN atrdsc = 'SANITÁRIO'                  THEN val END) AS "SANITÁRIO",
-    MAX(CASE WHEN atrdsc = 'SITUAÇÃO PATRIMONIO'        THEN val END) AS "SITUAÇÃO PATRIMONIO",
-    MAX(CASE WHEN atrdsc = 'TIPO'                       THEN val END) AS "TIPO",
-    MAX(CASE WHEN atrdsc = 'TIPO DE EDIFICAÇÃO'         THEN val END) AS "TIPO DE EDIFICAÇÃO",
-    MAX(CASE WHEN atrdsc = 'TOPOGRAFIA DO LOTE'         THEN val END) AS "TOPOGRAFIA DO LOTE",
-
-    -- Alguns atributos existem em mais de um grupo
-    -- (identificado por infcod).
-
-    MAX(CASE WHEN atrdsc = 'SITUAÇÃO'  AND infcod = 4 THEN val END) AS "SITUAÇÃO (Terreno)",
-    MAX(CASE WHEN atrdsc = 'SITUAÇÃO'  AND infcod = 5 THEN val END) AS "SITUAÇÃO (Prédio)",
-
-    MAX(CASE WHEN atrdsc = 'UTILIZAÇÃO' AND infcod = 4 THEN val END) AS "UTILIZAÇÃO (Terreno)",
-    MAX(CASE WHEN atrdsc = 'UTILIZAÇÃO' AND infcod = 5 THEN val END) AS "UTILIZAÇÃO (Prédio)"
+    END AS "Status do Imóvel"
 
 FROM base
 
-
--- GROUP BY final
--- Necessário porque usamos MAX() nas colunas pivotadas.
-
 GROUP BY
-    prpcod,
-    prpnom,
-    bcicod,
-    discod,
-    setcod,
-    qdacod,
-    bcilot,
-    bciund,
 
-    lgrnom,
-    lgrcod,
+    taxpayer_id,
+    taxpayer_name,
+    property_id,
 
-    bciareediund,
-    bciareterm2,
-    bciaretotedif,
+    district_code,
+    sector_code,
+    block_code,
+    lot_number,
+    unit_number,
 
-    bcitrbalq,
-    bcitrbvlr,
+    street_name,
+    street_id,
 
-    bcivlrvenalterr,
-    bcivlrvenaledif,
+    built_area_unit,
+    land_area_m2,
+    total_built_area,
 
-    bciativo,
-    lgrtip,
+    tax_rate,
+    tax_amount,
+    land_value,
+    building_value,
 
-    qdaseg,
-    bcilgrcomp,
-    bcicomplemaux,
+    property_status,
+    street_type,
+    block_face,
+    street_number,
 
-    baicod,
-    bainom,
+    is_exempt,
+    is_immune
 
-    ltmcod,
-    ltmnom,
-    ltmqda,
-    ltmlot,
-
-    BciLtmcod,
-    bciltmblq,
-    bciltmapto,
-
-    Bcitesprinc,
-    bciprof,
-    lgrseg,
-    bcilgrnum,
-
-    bciisento,
-    bciimune
-
-ORDER BY bcicod;
+ORDER BY property_id;
