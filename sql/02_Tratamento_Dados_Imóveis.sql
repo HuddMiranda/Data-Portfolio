@@ -4,6 +4,7 @@ Projeto: Transformação de Dados Cadastrais de Imóveis
 Descrição:
 Esta consulta consolida informações cadastrais de imóveis e contribuintes,
 realizando tratamento e transformação de dados para análise tributária.
+***NECESSÁRIO OS DADOS DO 01_PIVOT_DINÂMICO***
 
 A consulta realiza:
 - integração de múltiplas tabelas cadastrais
