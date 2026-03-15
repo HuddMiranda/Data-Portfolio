@@ -20,6 +20,18 @@ Técnicas utilizadas:
 - agregação de texto com STRING_AGG
 - funções de janela (COUNT OVER)
 - tratamento de strings com BTRIM
+
+- %L insere um literal SQL (normalmente uma string).
+O PostgreSQL adiciona automaticamente aspas simples
+e faz o escape correto do valor. Ex: 'AREA_TERRENO'.
+    
+- %s insere um valor simples diretamente na string
+sem adicionar aspas automaticamente.
+
+- %I insere um identificador SQL (nome de coluna,
+tabela ou alias). O PostgreSQL adiciona aspas
+duplas automaticamente quando necessário,
+garantindo que o identificador seja válido.
 */
 
 -- Geração automática das colunas do pivot
@@ -36,7 +48,7 @@ FROM (
                     attribute_name,
                     attribute_name
                 )
-
+   
             -- Quando o atributo existe em mais de um grupo
             ELSE
                 format(
