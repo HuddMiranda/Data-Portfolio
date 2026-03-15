@@ -1,5 +1,9 @@
 # SQL Data Analysis Portfolio
 
+## Objetivo
+
+Este repositório faz parte do meu portfólio profissional na área de dados.
+
 ## Sobre o projeto
 
 Este repositório reúne consultas SQL desenvolvidas para análise e transformação de dados.
@@ -35,6 +39,3 @@ Relatório consolidado do valor total de dívida por contribuinte.
 04_Dívida_Por_Título.sql  
 Consulta que identifica os maiores créditos individuais registrados no sistema.
 
-## Objetivo
-
-Este repositório faz parte do meu portfólio profissional na área de dados.
