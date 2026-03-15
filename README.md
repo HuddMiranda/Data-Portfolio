@@ -29,10 +29,10 @@ Geração dinâmica de colunas utilizando metadados da base de dados.
 02_Tratamento_Dados_Imóveis.sql  
 Transformação de dados cadastrais de imóveis em um dataset estruturado para análise.
 
-03_Dívida_Por_Contribuinte.sql  
+03_Dívida_Por_Contribuinte.sql   
 Relatório consolidado do valor total de dívida por contribuinte.
 
-04_Dívida_Por_Título.sql
+04_Dívida_Por_Título.sql  
 Consulta que identifica os maiores créditos individuais registrados no sistema.
 
 ## Objetivo
