@@ -92,6 +92,7 @@ LEFT JOIN (
         building_value
 
     FROM PropertyTaxes
+-- Ano de lançamento da taxa e somente os que possuem a taxa lançada  
     WHERE fiscal_year = 2025
       AND tax_record > 0
 
