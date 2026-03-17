@@ -176,7 +176,9 @@ SELECT
         WHEN 'T' THEN 'Temporário'
         WHEN 'R' THEN 'Imóvel Rural'
         WHEN 'B' THEN 'Bloqueado'
-    END AS "Status do Imóvel"
+    END AS "Status do Imóvel",
+
+    --Inserir os dados do script 01_Pivot_Dinâmico
 
 FROM base
 
